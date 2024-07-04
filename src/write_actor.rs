@@ -1,5 +1,5 @@
-use std::fs::OpenOptions;
 use memmap2::{Mmap, MmapMut};
+use std::fs::{File};
 use tokio::sync::{mpsc, oneshot};
 
 pub struct ChunkMessage {
@@ -7,15 +7,17 @@ pub struct ChunkMessage {
     pub indices: (u32, u32),
     pub chunk: Vec<u8>,
 }
+
 impl ChunkMessage {
-    pub fn new(indices: (u32, u32), chunk: Vec<u8>) -> Self {
+    pub fn from_mmap(mmap: &Mmap, indices: (u32, u32)) -> Self {
+        let chunk = mmap[indices.0 as usize..indices.1 as usize].to_vec();
         ChunkMessage { indices, chunk }
     }
 }
 
 pub struct WriteActorMessage {
     message: ChunkMessage,
-    respond_to: oneshot::Sender<u64>
+    respond_to: oneshot::Sender<u64>,
 }
 
 /// WriteActor: Runs in a separate thread and writes the processed chunks to the output file
@@ -26,19 +28,16 @@ pub struct WriteActor {
 }
 
 impl WriteActor {
-
     /// create a new WriteActor
-     fn new(size: u64, out_dir: &str, receiver: mpsc::Receiver<WriteActorMessage>) -> anyhow::Result<WriteActor> {
-        let file = OpenOptions::new()
-            .read(true)
-            .write(true)
-            .create(true)
-            .open(out_dir)?;
-
+    fn new(
+        size: u64,
+        out_dir: &str,
+        receiver: mpsc::Receiver<WriteActorMessage>,
+    ) -> anyhow::Result<WriteActor> {
+        let file =File::open(out_dir)?;
         file.set_len(size)?;
-        let mmap = unsafe {
-            Mmap::map(&file)?
-        };
+
+        let mmap = unsafe { Mmap::map(&file)? };
         Ok(WriteActor {
             receiver,
             size,
@@ -47,14 +46,16 @@ impl WriteActor {
     }
     /// handle Write Request
     /// merges the chunk into the output file mmap
-    fn handle_message(&mut self, msg: WriteActorMessage){
+    fn handle_message(&mut self, msg: WriteActorMessage) {
         // merge the chunk into the appropriate position in the mmap
         let (start, end) = msg.message.indices;
         let chunk = msg.message.chunk;
         // copy the chunk into the mmap: can cause a overhead in performance?
         self.mmap[start as usize..end as usize].copy_from_slice(&chunk);
         let index = (end as u64).div_floor(self.size);
-        msg.respond_to.send(index as u64).expect("Failed to send response");
+        msg.respond_to
+            .send(index)
+            .expect("Failed to send response");
     }
 }
 
@@ -88,7 +89,6 @@ impl WriteActorHandle {
             respond_to: send,
         };
         let _ = self.sender.send(msg).await;
-        let res = recv.await.expect("Failed to send message");
-        res
+        recv.await.expect("Failed to send message")
     }
 }

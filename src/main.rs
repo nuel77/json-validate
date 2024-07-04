@@ -1,18 +1,20 @@
 #![feature(int_roundings)]
 
+#[cfg(test)]
+mod test;
 mod write_actor;
 
-use std::fs::{OpenOptions};
+use crate::write_actor::{ChunkMessage, WriteActorHandle};
 use clap::Parser;
 use memmap2::Mmap;
+use std::fs::OpenOptions;
 use tokio::task::JoinSet;
-use crate::write_actor::{ChunkMessage, WriteActorHandle};
 
 //cmd arguments
 
 #[derive(Debug, Parser)]
 struct Args {
-    #[arg(short, long, default_value = "data/test1.json")]
+    #[arg(short, long, default_value = "data/unit_test1.json")]
     input_dir: String,
     #[arg(short, long, default_value = "data/out.json")]
     output_dir: String,
@@ -38,8 +40,7 @@ async fn main() {
     //spawn tasks to process each chunk
     for _ in 0..max_cores {
         let end = (start + chunk_size).min(mmap.len());
-        let data = mmap[start..end].to_vec();
-        let chunk = ChunkMessage::new((start as u32, end as u32), data);
+        let chunk = ChunkMessage::from_mmap(&mmap, (start as u32, end as u32));
         let actor = write_actor.clone();
         tasks.spawn(tokio::spawn(async move {
             process_chunk(chunk, actor).await;
@@ -49,9 +50,9 @@ async fn main() {
 
     //wait for all tasks to complete
     while let Some(res) = tasks.join_next().await {
-       if let Err(e) = res {
-           log::error!("Error processing chunk: {:?}", e);
-       }
+        if let Err(e) = res {
+            log::error!("Error processing chunk: {:?}", e);
+        }
     }
     log::info!("Time taken: {:?}", then.elapsed());
 }
@@ -60,7 +61,7 @@ async fn main() {
 async fn process_chunk(mut data: ChunkMessage, handle: WriteActorHandle) -> u64 {
     log::info!("processing: {:?}", data.indices);
     // replace semicolons with colons in the chunk
-    for (_, item) in data.chunk.iter_mut().enumerate() {
+    for item in data.chunk.iter_mut() {
         if *item == b';' {
             *item = b':';
         }
@@ -69,14 +70,11 @@ async fn process_chunk(mut data: ChunkMessage, handle: WriteActorHandle) -> u64 
     handle.send_chunk(data).await
 }
 
-fn read_file(directory: &str)-> Mmap {
+pub fn read_file(directory: &str) -> Mmap {
     let file = OpenOptions::new()
         .read(true)
         .write(true)
         .open(directory)
         .expect("File not found");
-    unsafe {
-        Mmap::map(&file)
-            .expect(&format!("Error mapping file {}", directory))
-    }
+    unsafe { Mmap::map(&file).unwrap_or_else(|_| panic!("Error mapping file {}", directory))}
 }
