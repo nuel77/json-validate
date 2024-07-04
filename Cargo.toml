@@ -1,0 +1,13 @@
+[package]
+name = "json-validate"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+memmap2 = "0.9.4"
+tokio = { version = "1.38.0", features = ["full"]}
+tokio-util = "0.7.11"
+anyhow = "1.0.86"
+clap = { version = "4.5.8", features = ["derive"]}
+log = "0.4.22"
+env_logger = "0.11.3"
