@@ -65,7 +65,7 @@ async fn process_chunk(mut data: ChunkMessage, handle: WriteActorHandle) -> u64 
             *item = b':';
         }
     }
-    //send the chunk to the write actor
+    //send the chunk to the write actor to be written to the output file
     handle.send_chunk(data).await
 }
 
