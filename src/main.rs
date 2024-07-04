@@ -15,9 +15,9 @@ use tokio::task::JoinSet;
 #[derive(Debug, Parser)]
 struct Args {
     #[arg(short, long, default_value = "data/unit_test1.json")]
-    input_dir: String,
-    #[arg(short, long, default_value = "data/out.json")]
-    output_dir: String,
+    input: String,
+    #[arg(short, long, default_value = "data/out_unit_test1.json")]
+    output: String,
 }
 #[tokio::main]
 async fn main() {
@@ -26,10 +26,10 @@ async fn main() {
     env_logger::init();
 
     //read the file into memory-mapped file
-    let mmap = read_file(&args.input_dir);
+    let mmap = read_file(&args.input);
 
     //create a write actor handle for the tasks
-    let write_actor = WriteActorHandle::new(mmap.len() as u64, &args.output_dir).unwrap();
+    let write_actor = WriteActorHandle::new(mmap.len() as u64, &args.output).unwrap();
 
     //divide mmap into equal chunks for length mmap.len() / max_cores
     let max_cores: usize = std::thread::available_parallelism().unwrap().into();

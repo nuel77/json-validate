@@ -1,5 +1,5 @@
 use memmap2::{Mmap, MmapMut};
-use std::fs::{File};
+use std::fs::{OpenOptions};
 use tokio::sync::{mpsc, oneshot};
 
 pub struct ChunkMessage {
@@ -34,7 +34,11 @@ impl WriteActor {
         out_dir: &str,
         receiver: mpsc::Receiver<WriteActorMessage>,
     ) -> anyhow::Result<WriteActor> {
-        let file =File::open(out_dir)?;
+        let file = OpenOptions::new()
+            .read(true)
+            .write(true)
+            .create(true)
+            .open(out_dir)?;
         file.set_len(size)?;
 
         let mmap = unsafe { Mmap::map(&file)? };
