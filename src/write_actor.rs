@@ -50,10 +50,7 @@ impl WriteActor {
             }
             None => DataOut::Stdout(io::stdout()),
         };
-        Ok(WriteActor {
-            receiver,
-            out,
-        })
+        Ok(WriteActor { receiver, out })
     }
     /// handle Write Request
     /// merges the chunk into the output file mmap
