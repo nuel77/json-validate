@@ -1,7 +1,7 @@
-use std::fs::{File};
-use std::io::Read;
-use crate::write_actor::{WriteActorHandle};
 use crate::read_actor::ReadActor;
+use crate::write_actor::WriteActorHandle;
+use std::fs::File;
+use std::io::Read;
 
 #[tokio::test]
 async fn test_replace() {

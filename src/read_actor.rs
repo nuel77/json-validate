@@ -44,8 +44,8 @@ impl ReadActor {
                     if n == 0 {
                         break;
                     }
-                    log::info!("sending index {:?}", index);
-                    index+=1;
+                    log::info!("processing: {:?} {:?}", index - 1, index);
+                    index += 1;
                     let handle = handle.clone();
                     set.spawn(tokio::task::spawn(process_chunk(buf.clone(), handle)));
                 }
