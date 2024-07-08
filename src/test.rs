@@ -1,17 +1,22 @@
-use crate::write_actor::{ChunkMessage, WriteActorHandle};
-use crate::{process_chunk, read_file};
+use std::fs::{File};
+use std::io::Read;
+use crate::write_actor::{WriteActorHandle};
+use crate::read_actor::ReadActor;
 
 #[tokio::test]
 async fn test_replace() {
-    let input = "data/unit_test1.json";
-    let output = "data/out_unit_test1.json";
-    let file = read_file(input);
-    let actor = WriteActorHandle::new(file.len() as u64, output).unwrap();
-    let chunk = ChunkMessage::from_mmap(&file, (0, file.len() as u32));
-    process_chunk(chunk, actor.clone()).await;
-    let out_file = read_file(output);
+    let input = String::from("data/unit_test1.json");
+    let output = String::from("data/out_unit_test1.json");
+    let mut reader = ReadActor::new(Some(&input));
+    let actor = WriteActorHandle::new(Some(&output)).unwrap();
+    reader.process(1024, actor).await;
+    let mut out_file = read_file(output);
     // ensure no semicolons in the output file
-    for item in out_file.iter() {
-        assert_ne!(*item, b';');
-    }
+    let mut out_str = String::new();
+    out_file.read_to_string(&mut out_str).unwrap();
+    assert!(!out_str.contains(";"));
+}
+
+fn read_file(directory: String) -> File {
+    File::open(&directory).unwrap()
 }
